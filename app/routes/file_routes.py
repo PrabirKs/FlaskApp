@@ -8,6 +8,7 @@ import uuid
 import xml.etree.ElementTree as ET
 from flask import Blueprint, send_from_directory, request, jsonify
 from app.dbSql import get_db
+from app.service.fileConverter import csv_to_xlsx,xml_to_xlsx,json_to_xlsx
 
 file_routes = Blueprint('file_routes', __name__)
 
@@ -52,6 +53,40 @@ def convert():
         return filename
     except Exception as e:
         return f"Error processing XML data: {str(e)}", 500
+
+@file_routes.route("/convert2", methods=["POST"])
+def convert2():
+    json_data = request.json
+    
+    if json_data is None:
+        return "No JSON data received", 400
+    
+    content_type = json_data['contentType']
+    data = json_data['content']
+
+    if content_type == 'text/xml':
+        try:
+            filename = xml_to_xlsx(data)
+            return filename
+        except Exception as e:
+            return f"Error converting XML to XLSX: {str(e)}", 500
+    
+    elif content_type == 'text/csv':
+        try:
+            filename = csv_to_xlsx(data)
+            return filename
+        except Exception as e:
+            return f"Error converting CSV to XLSX: {str(e)}", 500
+
+    elif content_type == 'application/json':
+        try:
+            filename = json_to_xlsx(data)
+            return filename
+        except Exception as e:
+            return f"Error converting JSON to XLSX: {str(e)}", 500
+    
+    else:
+        return "Unsupported content type", 400
 
 @file_routes.route("/download/<filename>")
 def download(filename):
