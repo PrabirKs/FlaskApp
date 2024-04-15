@@ -1,12 +1,13 @@
 # app/routes/file_routes.py
 
+# app/routes/file_routes.py
+
 import os
 import csv
 import uuid
 import xml.etree.ElementTree as ET
 from flask import Blueprint, send_from_directory, request, jsonify
-from app.db import MySQL
-
+from app.dbSql import get_db
 
 file_routes = Blueprint('file_routes', __name__)
 
@@ -52,42 +53,45 @@ def convert():
     except Exception as e:
         return f"Error processing XML data: {str(e)}", 500
 
-
 @file_routes.route("/download/<filename>")
 def download(filename):
-    return send_from_directory('downloads', filename, download_name = 'result.csv')
+    return send_from_directory('downloads', filename, download_name='result.csv')
 
 @file_routes.route("/upload", methods=["POST"])
 def upload():
-    mysql = MySQL()
+    db = get_db()
     json_data = request.json
 
     if json_data is None:
         return "No JSON data received", 400
 
-    xml_string = json_data["xml"]
-    filename = json_data["fileName"]
-    content_type = json_data["contentType"]
+    xml_string = json_data.get("xml")
+    filename = json_data.get("fileName")
+    content_type = json_data.get("contentType")
 
     if not all([xml_string, filename, content_type]):
         return "Missing required fields in JSON data", 400
 
     # Save data to the database
-    cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO XMLfiles (filename, contentType, xmlString, timestamp) VALUES (%s, %s, %s, CURRENT_TIMESTAMP)",
-                (filename, content_type, xml_string))
-    mysql.connection.commit()
-    cur.close()
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO XMLfiles (filename, contentType, xmlString, timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+        (filename, content_type, xml_string),
+    )
+    db.commit()
+    cursor.close()
 
     return "File uploaded successfully!"
 
 @file_routes.route("/files", methods=["GET"])
 def get_files():
-    mysql = MySQL()
-    cur = mysql.connection.cursor()
-    cur.execute("SELECT id, filename, contentType, timestamp FROM XMLfiles")
-    files = cur.fetchall()
-    cur.close()
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT id, filename, contentType, timestamp FROM XMLfiles"
+    )
+    files = cursor.fetchall()
+    cursor.close()
 
     # Prepare response
     response = []
@@ -96,7 +100,7 @@ def get_files():
             "id": file[0],
             "filename": file[1],
             "contentType": file[2],
-            "timestamp": file[3].strftime("%Y-%m-%d %H:%M:%S") if file[3] else None
+            "timestamp": file[3].strftime("%Y-%m-%d %H:%M:%S") if file[3] else None,
         }
         response.append(file_data)
 

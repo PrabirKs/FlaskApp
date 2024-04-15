@@ -6,7 +6,7 @@ import os
 import csv
 import xml.etree.ElementTree as ET
 from flask import Blueprint, request, jsonify, Response
-from app.db import MySQL
+from app.dbMySql import MySQL
 import uuid
 process_routes = Blueprint('process_routes', __name__)
 

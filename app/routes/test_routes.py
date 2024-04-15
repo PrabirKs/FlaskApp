@@ -1,15 +1,19 @@
 # app/routes/test_routes.py
 
-from flask import Blueprint, jsonify, request
-from app.db import MySQL
+# app/routes/test_routes.py
+
+from flask import Blueprint, jsonify
+from app.dbSql import get_db
 
 test_routes = Blueprint('test_routes', __name__)
 
 @test_routes.route("/test")
 def index():
-    mysql = MySQL()
-    cur = mysql.connection.cursor()
-    cur.execute('SELECT * from XmlFIles')
-    data = cur.fetchall()
-    cur.close()
-    return jsonify(data)
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('SELECT * FROM test')
+    data = cursor.fetchall()
+    print(data)
+    cursor.close()
+    return "test index"
+
