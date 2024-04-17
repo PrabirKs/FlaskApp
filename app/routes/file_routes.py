@@ -8,7 +8,7 @@ import uuid
 import xml.etree.ElementTree as ET
 from flask import Blueprint, send_from_directory, request, jsonify
 from app.dbSql import get_db
-from app.service.fileConverter import csv_to_xlsx,xml_to_xlsx,json_to_xlsx
+from app.service.fileConverter import tsv_to_xlsx,csv_to_xlsx,xml_to_xlsx,json_to_xlsx
 
 file_routes = Blueprint('file_routes', __name__)
 
@@ -19,7 +19,7 @@ def convert():
     if json_data is None:
         return "No JSON data received", 400
     
-    xml_string = json_data.get('xml')
+    xml_string = json_data.get('content')
     
     if xml_string is None:
         return "No XML data found in JSON payload", 400
@@ -77,6 +77,12 @@ def convert2():
             return filename
         except Exception as e:
             return f"Error converting CSV to XLSX: {str(e)}", 500
+    elif content_type == 'text/tsv':
+        try:
+            filename = tsv_to_xlsx(data)
+            return filename
+        except Exception as e:
+            return f"Error converting CSV to XLSX: {str(e)}", 500
 
     elif content_type == 'application/json':
         try:
@@ -100,7 +106,7 @@ def upload():
     if json_data is None:
         return "No JSON data received", 400
 
-    xml_string = json_data.get("xml")
+    xml_string = json_data.get("content")
     filename = json_data.get("fileName")
     content_type = json_data.get("contentType")
 
