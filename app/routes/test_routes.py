@@ -8,14 +8,17 @@ def save():
     # Get form data
     task_name = request.form.get('TaskName')
     selected_format = request.form.get('select')
-    
+    model = request.form.get('selectModel')
     # Connect to the database
     db = get_db()
     cursor = db.cursor()
 
+    if(selected_format != 'undefined'):
     # Insert task name into the Task table
-    cursor.execute('INSERT INTO Task (taskname, report_format) VALUES (?, ?)', (task_name, selected_format))
-
+        cursor.execute('INSERT INTO Task (taskname, report_format, model) VALUES (?, ?, ?)', (task_name, selected_format,model))
+    else:
+        print("2")
+        cursor.execute('INSERT INTO Task (taskname, model) VALUES (?, ?)', (task_name,model))
     db.commit()
 
     # Get the ID of the inserted task
@@ -28,8 +31,9 @@ def save():
         filename = file.filename
         content = file.read()
         file_type = file.content_type
-        cursor.execute('INSERT INTO TaskFiles (filename, content, type, taskname, taskId) VALUES (?, ?, ?, ?, ?)',
-                       (filename, content, file_type, task_name, task_id))
+        file_size = len(content)
+        cursor.execute('INSERT INTO TaskFiles (filename, content, type, taskname, taskId, size) VALUES (?, ?, ?, ?, ?, ?)',
+                       (filename, content, file_type, task_name, task_id, file_size))
     db.commit()
 
     # Close the cursor and database connection
@@ -41,7 +45,8 @@ def save():
         'TaskName': task_name,
         'SelectedFormat': selected_format,
         'NumberOfFiles': len(files),
-        'TaskId': task_id
+        'TaskId': task_id,
+        'model':model
     }
     
     return jsonify(response_data)
@@ -65,14 +70,44 @@ def get_tasks():
         for task in tasks:
             task_data = {
                 'id': task[0],
-                'taskname': task[1],
-                'creation_date': task[2].strftime('%Y-%m-%d %H:%M:%S.%f'),
+                'jobname': task[1],
+                'creation_date': task[2].strftime('%Y-%m-%d %H:%M'),
                 'status': task[3],
-                'report_format': task[4]
+                'report_format': task[4],
+                'model':task[5]
             }
             tasks_data.append(task_data)
 
         # Return tasks data as JSON array
         return jsonify(tasks_data), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
+@test_routes.route('/files')
+def get_files():
+    try:
+        db = get_db()
+        cursor = db.cursor()
+
+        cursor.execute('SELECT * FROM TaskFiles')
+        files = cursor.fetchall()
+
+        cursor.close()
+
+        files_db = []
+        for file in files:
+            file_data = {
+                'id': file[0],
+                'filename': file[1],
+                'type': file[3],
+                'taskname': file[4],
+                'creation_date': file[5].strftime('%Y-%m-%d %H:%M'),
+                'task_Id': file[6],
+                'size' : file[7]
+            }
+            files_db.append(file_data)
+
+        # Return files data as JSON array
+        return jsonify(files_db), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

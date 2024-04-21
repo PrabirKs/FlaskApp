@@ -18,7 +18,7 @@ def get_db():
     if 'db' not in g:
         # Connect to SQL Server database
         g.db = pyodbc.connect(
-            'DRIVER={SQL Server};SERVER=SW0103021\\SQLEXPRESS;DATABASE=prabir;UID=Prabira;PWD=12345'
+            'DRIVER={SQL Server};SERVER=DESKTOP-A5FD6EQ\\SQLEXPRESS;DATABASE=TRADB;UID=sa;PWD=Prabir@123'
         )
     return g.db
 
