@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from app.dbSql import get_db
-
+from app.service.sizeConverter import format_file_size
 test_routes = Blueprint('test_routes', __name__)
 
 @test_routes.route('/save', methods=['POST'])
@@ -67,9 +67,9 @@ def get_tasks():
 
         # Prepare tasks data in JSON format
         tasks_data = []
-        for task in tasks:
+        for index,task in enumerate(tasks,start=1):
             task_data = {
-                'id': task[0],
+                'id': index,
                 'jobname': task[1],
                 'creation_date': task[2].strftime('%Y-%m-%d %H:%M'),
                 'status': task[3],
@@ -95,15 +95,15 @@ def get_files():
         cursor.close()
 
         files_db = []
-        for file in files:
+        for index,file in enumerate(files,start=1):
             file_data = {
-                'id': file[0],
+                'id': index,
                 'filename': file[1],
                 'type': file[3],
-                'taskname': file[4],
+                'jobname': file[4],
                 'creation_date': file[5].strftime('%Y-%m-%d %H:%M'),
                 'task_Id': file[6],
-                'size' : file[7]
+                'size' : format_file_size(int(file[7]))
             }
             files_db.append(file_data)
 
