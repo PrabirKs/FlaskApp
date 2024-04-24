@@ -3,7 +3,7 @@
 from flask import Flask
 from app.config import Config
 from flask_cors import CORS
-from app.routes.test_routes import test_routes
+from app.routes.job_routes import job_routes
 from app.routes.file_routes import file_routes
 from app.dbSql import init_db
 
@@ -13,7 +13,7 @@ def create_app():
     CORS(app)
     init_db(app)
 
-    app.register_blueprint(test_routes)
+    app.register_blueprint(job_routes)
     app.register_blueprint(file_routes)
 
     return app
