@@ -9,22 +9,22 @@ import bcrypt, base64
 from flask_cors import CORS
 from datetime import timedelta
 
-# test_routes = Blueprint('test_route', __name__)
-
-# @test_routes.route('/save',)
-
 app = Flask(__name__)
+
 app.config['JWT_SECRET_KEY'] = "prabir"
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=100)
+jwt = JWTManager(app)
+
 #sqlALCHEMY set up
 connection_string = 'DRIVER={SQL Server};SERVER=DESKTOP-A5FD6EQ\\SQLEXPRESS;DATABASE=TRADB;UID=sa;PWD=Prabir@123'
 DATABASE_URL = URL.create("mssql+pyodbc", query={"odbc_connect": connection_string})
 engine = create_engine(DATABASE_URL, use_setinputsizes=False)
 Session = sessionmaker(bind=engine)
+
 Base = declarative_base()
 
-jwt = JWTManager(app)
 
+#file size calculator
 def format_file_size(bytes):
     if bytes < 1024:
         return str(bytes) + ' bytes'
@@ -33,7 +33,7 @@ def format_file_size(bytes):
     else:
         return '{:.2f} MB'.format(bytes / (1024 * 1024))
 
-
+#model 
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
@@ -78,7 +78,8 @@ def check():
         return "sucess db connection" 
     else:
         return "failed to connect db"
-    
+
+#register A USER
 @app.route('/register', methods=['POST'])
 def register():
     data = request.json
@@ -101,6 +102,7 @@ def register():
 
     return jsonify({'message': 'User registered successfully'}), 201
 
+#LOG IN a user
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json
@@ -118,7 +120,7 @@ def login():
     session.close()
     return jsonify({'access_token': access_token, 'user' : email}), 200
 
-@app.route('/logout', methods=['POST'])
+@app.route('/logout', methods=['POST']) 
 @jwt_required()
 def logout():
     current_user_id = get_jwt_identity()
@@ -130,7 +132,7 @@ def logout():
     return response, 200
     
     
-    
+#Add a Jobs   
 @app.route('/jobs', methods=['POST'])
 @jwt_required()
 def add_job():
@@ -185,6 +187,7 @@ def add_job():
 
     return jsonify({'message': 'Job and files added successfully'}), 201
 
+#Get Jobs
 @app.route('/jobs', methods=['GET'])
 @jwt_required()
 def get_jobs():
@@ -198,20 +201,65 @@ def get_jobs():
     session.close()
     
     jobs_data = []
+    jobs_len = len(user_jobs)
     for index, job in enumerate(user_jobs,start=1):
         job_data = {
-            'id': index,
+            'id': jobs_len - index + 1,
             'jobname': job.jobname,
             'creation_date': job.creation_date.strftime('%Y-%m-%d %H:%M'),
-            'status': job.status,
+            'status': job.status.lower(),
             'report_format': job.output_report,
-            'model': job.model
+            'model': job.model,
+            'job_id':job.id
         }
-        jobs_data.append(job_data)
+        jobs_data.insert(0, job_data)
     
     return jsonify(jobs_data), 200
 
+@app.route('/jobs/stop', methods=['POST'])
+@jwt_required()
+def stop_job():
+    current_user_id = get_jwt_identity()
+    job_id = request.json.get('job_id')  
+    
+    session = Session()
 
+    # Retrieve the job by id and user_id to ensure the user has permission to cancel it
+    job = session.query(Job).filter_by(id=job_id, user_id=current_user_id).first()
+
+    if not job:
+        session.close()
+        return jsonify({'message': 'Job not found or user does not have permission'}), 404
+
+    # Update the status of the job to "cancelled"
+    job.status = 'Cancelled'
+    session.commit()
+    session.close()
+
+    return jsonify({'message': 'Job cancelled successfully'}), 200
+
+@app.route('/jobs/delete/<int:job_id>', methods=['DELETE'])
+@jwt_required()
+def delete_job(job_id):
+    current_user_id = get_jwt_identity()
+    
+    session = Session()
+    
+    # Check if the job exists
+    job = session.query(Job).filter_by(id=job_id, user_id=current_user_id).first()
+    if not job:
+        session.close()
+        return jsonify({'message': 'Job not found'}), 404
+
+    # Delete the job
+    session.delete(job)
+    session.commit()
+    
+    session.close()
+    
+    return jsonify({'message': 'Job deleted successfully'}), 200
+
+#Get All Files
 @app.route('/files', methods=['GET'])
 @jwt_required()
 def get_files():
@@ -222,22 +270,43 @@ def get_files():
     files_data = session.query(JobFile).join(Job).join(User).filter(User.id == current_user_id).all()
 
     files_info = []
+    file_len = len(files_data)
     for index,job_file in enumerate(files_data,start=1):
         file_info = {
-            'id':index,
+            'id':file_len-index+1,
             'name': job_file.name,
             'creation_date': job_file.creation_date.strftime('%Y-%m-%d %H:%M:%S'),
             'size': format_file_size(job_file.size),
             'jobname': job_file.job.jobname,
-            'user': job_file.job.user.email
+            'user': job_file.job.user.email,
+            'file_id': job_file.id
         }
-        files_info.append(file_info)
+        files_info.insert(0,file_info)
 
     session.close()
 
     return jsonify(files_info)
 
+@app.route('/files/<int:file_id>', methods=['DELETE'])
+@jwt_required()
+def delete_file(file_id):
+    current_user_id = get_jwt_identity()
+    
+    session = Session()
+    
+    # Check if the job exists
+    file = session.query(JobFile).filter_by(id=file_id).first()
+    if not file:
+        session.close()
+        return jsonify({'message': 'File not found'}), 404
 
+    # Delete the job
+    session.delete(file)
+    session.commit()
+    
+    session.close()
+    
+    return jsonify({'message': 'File deleted successfully'}), 200
 
 if __name__ == '__main__':
     Base.metadata.create_all(engine)
